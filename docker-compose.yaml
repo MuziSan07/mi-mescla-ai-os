@@ -1,0 +1,129 @@
+services:
+  redis:
+    image: redis:7-alpine
+    container_name: cline-ai-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    command: redis-server --appendonly yes
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    container_name: cline-ai-rabbitmq
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      - RABBITMQ_DEFAULT_USER=guest
+      - RABBITMQ_DEFAULT_PASS=guest
+    volumes:
+      - rabbitmq-data:/var/lib/rabbitmq
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "check_port_connectivity"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  ollama:
+    image: ollama/ollama:${OLLAMA_DOCKER_TAG-latest}
+    container_name: cline-ai-ollama
+    pull_policy: always
+    tty: true
+    restart: unless-stopped
+    volumes:
+      - ollama:/root/.ollama
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:11434"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  n8n:
+    image: n8nio/n8n:latest
+    container_name: cline-ai-n8n
+    restart: unless-stopped
+    ports:
+      - "5678:5678"
+    environment:
+      - N8N_BASIC_AUTH_ACTIVE=true
+      - N8N_BASIC_AUTH_USER=admin
+      - N8N_BASIC_AUTH_PASSWORD=admin123
+      - N8N_HOST=0.0.0.0
+      - N8N_PORT=5678
+      - N8N_PROTOCOL=http
+      - WEBHOOK_URL=http://localhost:5678/
+      - GENERIC_TIMEZONE=UTC
+      - N8N_ENCRYPTION_KEY=aios-n8n-encryption-key-change-me
+    volumes:
+      - n8n-data:/home/node/.n8n
+
+  comfyui:
+    image: yanwk/comfyui-boot:cu121
+    container_name: cline-ai-comfyui
+    restart: unless-stopped
+    ports:
+      - "8188:8188"
+    volumes:
+      - comfyui-data:/root
+    environment:
+      - CLI_ARGS=--listen 0.0.0.0 --port 8188
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: ghcr.io/aoi555/cline-ai-os:${TAG-main}
+    container_name: cline-ai-app
+    ports:
+      - "3000:8080"
+    volumes:
+      - app-data:/app/backend/data
+    depends_on:
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      ollama:
+        condition: service_started
+      n8n:
+        condition: service_started
+    environment:
+      - OLLAMA_BASE_URL=http://ollama:11434
+      - REDIS_URL=redis://redis:6379
+      - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672
+      - WEBUI_SECRET_KEY=${WEBUI_SECRET_KEY}
+      - N8N_BASE_URL=http://cline-ai-n8n:5678
+      - COMFYUI_BASE_URL=http://cline-ai-comfyui:8188
+      - AIOS_BASE_URL=http://cline-ai-app:8080
+      - EMBEDDING_MODEL=nomic-embed-text
+      - GITHUB_TOKEN=
+      - HUGGINGFACE_TOKEN=
+      - SECRET_KEY=change-me-in-production
+      - AUTH_ENABLED=false
+      - ALLOWED_ORIGINS=*
+    extra_hosts:
+      - host.docker.internal:host-gateway
+    restart: unless-stopped
+
+volumes:
+  redis-data:
+  rabbitmq-data:
+  ollama:
+  app-data:
+  n8n-data:
+  comfyui-data:
