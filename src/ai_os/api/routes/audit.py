@@ -8,7 +8,7 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/api/audit", tags=["audit"])
+router = APIRouter(tags=["audit"])  # prefix supplied by main.py (/api/v1/audit)
 
 
 @router.get("/run")

@@ -1,0 +1,22 @@
+# AI-OS backend (FastAPI + dashboard) — systemd unit
+# Install: sudo cp deploy/aios.service /etc/systemd/system/aios.service
+#          sudo systemctl daemon-reload && sudo systemctl enable --now aios
+[Unit]
+Description=AI-OS backend (FastAPI API + dashboard)
+After=network-online.target ollama.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+# Where the repo lives on the appliance:
+WorkingDirectory=/opt/aios/app
+EnvironmentFile=/opt/aios/app/.env
+# Use the venv's uvicorn; --app-dir puts src/ on the import path.
+ExecStart=/opt/aios/venv/bin/uvicorn ai_os.main:app --app-dir src --host 0.0.0.0 --port 8080
+Restart=always
+RestartSec=3
+User=aios
+Group=aios
+
+[Install]
+WantedBy=multi-user.target

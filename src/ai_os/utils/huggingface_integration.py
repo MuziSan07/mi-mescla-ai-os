@@ -5,7 +5,7 @@ Manages HuggingFace sessions, models, datasets, Spaces
 
 import os
 from typing import Dict, List, Optional, Any
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
 import logging
 
@@ -29,7 +29,7 @@ class HFModel:
     private: bool
     downloads: int = 0
     likes: int = 0
-    tags: List[str] = []
+    tags: List[str] = field(default_factory=list)
     pipeline_tag: Optional[str] = None
     created_at: str = ""
     sha: str = ""

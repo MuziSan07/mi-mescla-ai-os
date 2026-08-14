@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AI-OS · Voice</title>
+<style>
+  :root{
+    --ground:#0D1320; --surface:#141C2B; --surface-2:#1B2536;
+    --ink:#E7ECF5; --muted:#98A4BC; --line:#26314A;
+    --accent:#FF7E64; --tech:#43D0C0; --done:#56C98A; --bad:#FF6B6B;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; min-height:100vh; background:var(--ground); color:var(--ink);
+    font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+    display:flex; flex-direction:column; align-items:center;
+  }
+  .mono{font-family:ui-monospace,"SF Mono","JetBrains Mono",Consolas,monospace;}
+  header{width:100%; max-width:720px; padding:22px 24px 8px; display:flex; align-items:center; justify-content:space-between;}
+  header .title{font-weight:800; letter-spacing:-.02em; font-size:1.15rem;}
+  header .title span{color:var(--accent);}
+  .status{font-size:.72rem; letter-spacing:.1em; text-transform:uppercase; color:var(--muted); display:flex; gap:8px; align-items:center;}
+  .dot{width:9px; height:9px; border-radius:50%; background:var(--muted);}
+  .dot.ok{background:var(--done);} .dot.bad{background:var(--bad);}
+
+  main{width:100%; max-width:720px; flex:1; display:flex; flex-direction:column; padding:0 24px;}
+  .log{flex:1; display:flex; flex-direction:column; gap:12px; padding:24px 0; overflow-y:auto;}
+  .bubble{max-width:80%; padding:12px 16px; border-radius:16px; line-height:1.5; font-size:.98rem;}
+  .me{align-self:flex-end; background:var(--surface-2); border:1px solid var(--line); border-bottom-right-radius:5px;}
+  .her{align-self:flex-start; background:linear-gradient(135deg,rgba(255,126,100,.14),rgba(67,208,192,.12)); border:1px solid var(--line); border-bottom-left-radius:5px;}
+  .bubble .who{font-size:.66rem; letter-spacing:.14em; text-transform:uppercase; color:var(--muted); margin-bottom:4px;}
+  .her .who{color:var(--accent);}
+  .empty{color:var(--muted); text-align:center; margin:auto; max-width:34ch; line-height:1.6;}
+  .empty b{color:var(--ink);}
+
+  .dock{position:sticky; bottom:0; width:100%; padding:20px 0 34px; display:flex; flex-direction:column; align-items:center; gap:12px; background:linear-gradient(transparent, var(--ground) 30%);}
+  .mic{
+    width:88px; height:88px; border-radius:50%; border:none; cursor:pointer;
+    background:radial-gradient(circle at 50% 40%, #ff9a84, var(--accent));
+    color:#20130f; display:flex; align-items:center; justify-content:center;
+    box-shadow:0 10px 30px rgba(255,126,100,.35); transition:transform .12s ease;
+  }
+  .mic:hover{transform:translateY(-2px);}
+  .mic:active{transform:scale(.96);}
+  .mic svg{width:34px; height:34px;}
+  .mic.rec{background:radial-gradient(circle at 50% 40%, #ff8f8f, var(--bad)); animation:pulse 1.2s infinite;}
+  .mic.busy{background:var(--surface-2); color:var(--muted); cursor:wait; box-shadow:none;}
+  @keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(255,107,107,.5);}50%{box-shadow:0 0 0 18px rgba(255,107,107,0);}}
+  @media (prefers-reduced-motion:reduce){.mic.rec{animation:none;}}
+  .hint{font-size:.82rem; color:var(--muted); min-height:1.2em;}
+  .hint.err{color:var(--bad);}
+  button:focus-visible{outline:2px solid var(--tech); outline-offset:3px;}
+</style>
+</head>
+<body>
+  <header>
+    <div class="title">AI&#8209;OS <span>· voice</span></div>
+    <div class="status"><span class="dot" id="dot"></span><span id="statusText">checking…</span></div>
+  </header>
+
+  <main>
+    <div class="log" id="log">
+      <div class="empty" id="empty">
+        <b>Tap the mic and talk.</b><br>
+        She listens with Whisper, thinks with your local model, and answers in a Piper voice.
+      </div>
+    </div>
+
+    <div class="dock">
+      <button class="mic" id="mic" aria-label="Hold to talk">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 2a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/>
+          <path d="M19 10v1a7 7 0 0 1-14 0v-1"/><line x1="12" y1="18" x2="12" y2="22"/>
+        </svg>
+      </button>
+      <div class="hint" id="hint">Tap to start recording</div>
+    </div>
+  </main>
+
+<script>
+const API = '/api/v1/voice';
+const micBtn = document.getElementById('mic');
+const hint = document.getElementById('hint');
+const log = document.getElementById('log');
+const empty = document.getElementById('empty');
+const dot = document.getElementById('dot');
+const statusText = document.getElementById('statusText');
+
+let mediaRecorder = null, chunks = [], recording = false;
+
+function setHint(msg, isErr){ hint.textContent = msg; hint.classList.toggle('err', !!isErr); }
+
+function addBubble(who, text){
+  if (empty) empty.remove();
+  const b = document.createElement('div');
+  b.className = 'bubble ' + (who === 'you' ? 'me' : 'her');
+  b.innerHTML = '<div class="who">' + (who === 'you' ? 'You' : 'AI-OS') + '</div>';
+  const p = document.createElement('div'); p.textContent = text; b.appendChild(p);
+  log.appendChild(b); log.scrollTop = log.scrollHeight;
+  return b;
+}
+
+async function checkStatus(){
+  try{
+    const r = await fetch(API + '/status');
+    const s = await r.json();
+    if (s.ready){ dot.className='dot ok'; statusText.textContent='ready'; }
+    else {
+      dot.className='dot bad';
+      const parts=[]; if(!s.stt.available) parts.push('STT'); if(!s.tts.available) parts.push('voice');
+      statusText.textContent = 'missing: ' + parts.join(' + ');
+      setHint(s.hint || 'Voice engines not fully installed — see /docs', true);
+    }
+  }catch(e){ dot.className='dot bad'; statusText.textContent='offline'; }
+}
+
+async function startRecording(){
+  try{
+    const stream = await navigator.mediaDevices.getUserMedia({ audio:true });
+    mediaRecorder = new MediaRecorder(stream);
+    chunks = [];
+    mediaRecorder.ondataavailable = e => { if (e.data.size) chunks.push(e.data); };
+    mediaRecorder.onstop = () => { stream.getTracks().forEach(t=>t.stop()); sendAudio(); };
+    mediaRecorder.start();
+    recording = true; micBtn.classList.add('rec'); setHint('Listening… tap to send');
+  }catch(e){ setHint('Microphone blocked — allow mic access', true); }
+}
+
+function stopRecording(){
+  if (mediaRecorder && recording){ recording=false; micBtn.classList.remove('rec'); mediaRecorder.stop(); }
+}
+
+async function sendAudio(){
+  const blob = new Blob(chunks, { type:'audio/webm' });
+  if (!blob.size){ setHint('Nothing recorded — try again'); return; }
+  micBtn.classList.add('busy'); micBtn.disabled = true; setHint('Thinking…');
+  try{
+    const fd = new FormData();
+    fd.append('audio', blob, 'speech.webm');
+    const r = await fetch(API + '/chat', { method:'POST', body:fd });
+    if (!r.ok){ const err = await r.json().catch(()=>({detail:r.statusText})); throw new Error(err.detail || 'error'); }
+    const data = await r.json();
+    if (data.transcript) addBubble('you', data.transcript);
+    if (data.reply) addBubble('her', data.reply);
+    setHint('Tap to talk again');
+    if (data.audio_base64){
+      const audio = new Audio('data:audio/wav;base64,' + data.audio_base64);
+      audio.play().catch(()=>{});
+    }
+  }catch(e){ setHint('' + e.message, true); }
+  finally{ micBtn.classList.remove('busy'); micBtn.disabled = false; }
+}
+
+micBtn.addEventListener('click', () => { recording ? stopRecording() : startRecording(); });
+checkStatus();
+</script>
+</body>
+</html>

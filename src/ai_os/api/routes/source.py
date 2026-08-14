@@ -9,7 +9,7 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/api/source", tags=["source"])
+router = APIRouter(tags=["source"])  # prefix supplied by main.py (/api/v1/source)
 
 
 class GitHubLoginRequest(BaseModel):

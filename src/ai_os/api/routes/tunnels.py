@@ -16,7 +16,7 @@ from ai_os.core.tunnels.manager import (
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/api/tunnels", tags=["tunnels"])
+router = APIRouter(tags=["tunnels"])  # prefix supplied by main.py (/api/v1/tunnels)
 
 
 class CreateTunnelRequest(BaseModel):

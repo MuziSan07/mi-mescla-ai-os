@@ -1,0 +1,22 @@
+# APT packages baked into the AI-OS ISO (live-build chroot package list).
+# Heavy model files are fetched at first boot, not included here.
+python3
+python3-venv
+python3-pip
+curl
+ca-certificates
+rsync
+sudo
+network-manager
+# Graphical kiosk
+xserver-xorg
+xinit
+openbox
+unclutter
+chromium
+# Audio (voice layer): whisper decode, piper phonemes, mic/speaker
+ffmpeg
+espeak-ng
+libsndfile1
+libportaudio2
+alsa-utils

@@ -1,0 +1,15 @@
+# AI-OS first-boot provisioning (pulls Ollama model + Piper voice) — runs once.
+[Unit]
+Description=AI-OS first-boot provisioning
+After=network-online.target
+Wants=network-online.target
+ConditionPathExists=!/opt/aios/.firstboot-done
+
+[Service]
+Type=oneshot
+ExecStart=/opt/aios/app/deploy/firstboot.sh
+RemainAfterExit=yes
+TimeoutStartSec=0
+
+[Install]
+WantedBy=multi-user.target

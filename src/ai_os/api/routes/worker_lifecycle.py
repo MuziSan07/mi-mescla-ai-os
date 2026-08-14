@@ -9,7 +9,7 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/api/workers", tags=["workers"])
+router = APIRouter(tags=["workers"])  # prefix supplied by main.py (/api/v1/lifecycle)
 
 
 class StartWorkerRequest(BaseModel):
@@ -97,41 +97,6 @@ async def list_workers():
         
     except Exception as e:
         logger.error(f"List workers error: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@router.get("/{worker_id}")
-async def get_worker(worker_id: str):
-    """Get worker details"""
-    from ai_os.utils.colab_worker_lifecycle import get_lifecycle_manager
-    
-    try:
-        manager = get_lifecycle_manager()
-        worker = manager.registry.get_worker(worker_id)
-        
-        if not worker:
-            raise HTTPException(status_code=404, detail="Worker not found")
-        
-        return {
-            "worker_id": worker.worker_id,
-            "status": worker.status.value,
-            "gpu_available": worker.gpu_available,
-            "gpu_type": worker.gpu_type,
-            "gpu_memory_total": worker.gpu_memory_total,
-            "gpu_memory_used": worker.gpu_memory_used,
-            "cpu_usage": worker.cpu_usage,
-            "ram_usage": worker.ram_usage,
-            "vram_usage": worker.vram_usage,
-            "uptime_seconds": time.time() - worker.created_at,
-            "tasks_completed": worker.task_completed,
-            "tasks_failed": worker.task_failed,
-            "health_score": worker.health_score
-        }
-        
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Get worker error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -226,3 +191,40 @@ async def delete_checkpoint(task_id: str):
 
 
 import time  # Add missing import
+
+
+# NOTE: this dynamic /{worker_id} route is defined LAST so it does not shadow
+# the static routes above (/list, /stats, /health, /checkpoints).
+@router.get("/{worker_id}")
+async def get_worker(worker_id: str):
+    """Get worker details"""
+    from ai_os.utils.colab_worker_lifecycle import get_lifecycle_manager
+
+    try:
+        manager = get_lifecycle_manager()
+        worker = manager.registry.get_worker(worker_id)
+
+        if not worker:
+            raise HTTPException(status_code=404, detail="Worker not found")
+
+        return {
+            "worker_id": worker.worker_id,
+            "status": worker.status.value,
+            "gpu_available": worker.gpu_available,
+            "gpu_type": worker.gpu_type,
+            "gpu_memory_total": worker.gpu_memory_total,
+            "gpu_memory_used": worker.gpu_memory_used,
+            "cpu_usage": worker.cpu_usage,
+            "ram_usage": worker.ram_usage,
+            "vram_usage": worker.vram_usage,
+            "uptime_seconds": time.time() - worker.created_at,
+            "tasks_completed": worker.task_completed,
+            "tasks_failed": worker.task_failed,
+            "health_score": worker.health_score
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Get worker error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))

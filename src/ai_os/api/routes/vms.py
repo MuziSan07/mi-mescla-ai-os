@@ -16,7 +16,7 @@ from ai_os.core.gpu.micro_vm_manager import (
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/api/vm", tags=["vm"])
+router = APIRouter(tags=["vm"])  # prefix supplied by main.py (/api/v1/vms)
 
 
 class CreateVMRequest(BaseModel):
@@ -102,31 +102,6 @@ async def list_vms():
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.get("/{vm_id}", response_model=VMResponse)
-async def get_vm(vm_id: str):
-    """Get VM by ID"""
-    try:
-        manager = get_micro_vm_manager()
-        vm = await manager.get_vm(vm_id)
-        
-        if not vm:
-            raise HTTPException(status_code=404, detail="VM not found")
-        
-        return VMResponse(
-            id=vm.id,
-            name=vm.name,
-            status=vm.status.value,
-            ip_address=vm.ip_address,
-            port=vm.port
-        )
-        
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Get VM error: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-
 @router.get("/{vm_id}/validate", response_model=ValidationResponse)
 async def validate_vm(vm_id: str):
     """Validate a VM"""
@@ -203,3 +178,30 @@ async def get_vm_stats():
 async def vm_health():
     """VM service health check"""
     return {"status": "healthy"}
+
+
+# NOTE: dynamic /{vm_id} route is defined LAST so it does not shadow the
+# static routes above (/list, /stats, /health).
+@router.get("/{vm_id}", response_model=VMResponse)
+async def get_vm(vm_id: str):
+    """Get VM by ID"""
+    try:
+        manager = get_micro_vm_manager()
+        vm = await manager.get_vm(vm_id)
+
+        if not vm:
+            raise HTTPException(status_code=404, detail="VM not found")
+
+        return VMResponse(
+            id=vm.id,
+            name=vm.name,
+            status=vm.status.value,
+            ip_address=vm.ip_address,
+            port=vm.port
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Get VM error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))

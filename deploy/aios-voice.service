@@ -1,0 +1,22 @@
+# AI-OS wake-word daemon (hands-free voice) — systemd unit
+# Install: sudo cp deploy/aios-voice.service /etc/systemd/system/aios-voice.service
+#          sudo systemctl daemon-reload && sudo systemctl enable --now aios-voice
+[Unit]
+Description=AI-OS wake-word voice daemon (always listening)
+After=aios.service sound.target
+Wants=aios.service
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/aios/app
+EnvironmentFile=/opt/aios/app/.env
+ExecStart=/opt/aios/venv/bin/python -m ai_os.voice_daemon
+Restart=always
+RestartSec=5
+User=aios
+Group=aios
+# Mic + speaker access:
+SupplementaryGroups=audio
+
+[Install]
+WantedBy=multi-user.target

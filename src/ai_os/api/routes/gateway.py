@@ -11,7 +11,7 @@ from ai_os.core.router.api_gateway import get_unified_gateway, UnifiedAPIGateway
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/api/gateway", tags=["gateway"])
+router = APIRouter(tags=["gateway"])  # prefix supplied by main.py (/api/v1/gateway)
 
 
 class ChatRequest(BaseModel):
@@ -114,6 +114,22 @@ async def list_providers():
     except Exception as e:
         logger.error(f"List providers error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/providers/status")
+async def provider_status():
+    """Live status of each provider: which are usable right now (local or has credentials)."""
+    gateway = get_unified_gateway()
+    status = gateway.provider_status()
+    usable = [name for name, s in status.items() if s["available"]]
+    return {
+        "providers": status,
+        "usable": usable,
+        "mode": "hybrid" if any(status[p]["available"] and status[p]["type"] == "cloud" for p in status)
+                and status.get("ollama", {}).get("available") else
+                ("cloud-only" if any(s["available"] and s["type"] == "cloud" for s in status.values())
+                 else "local-only"),
+    }
 
 
 @router.get("/health")
