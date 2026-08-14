@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AI-OS · Setup</title>
+<style>
+  :root{
+    --ground:#0D1320; --surface:#141C2B; --surface-2:#1B2536;
+    --ink:#E7ECF5; --muted:#98A4BC; --faint:#66728C; --line:#26314A;
+    --accent:#FF7E64; --tech:#43D0C0; --done:#56C98A;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0; background:var(--ground); color:var(--ink);
+    font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; line-height:1.55;}
+  .mono{font-family:ui-monospace,"SF Mono","JetBrains Mono",Consolas,monospace;}
+  .wrap{max-width:640px; margin:0 auto; padding:32px 20px 60px;}
+  h1{font-size:1.6rem; letter-spacing:-.02em; margin:0 0 2px;}
+  h1 span{color:var(--accent);}
+  .lede{color:var(--muted); margin:0 0 6px;}
+  .mode{display:inline-flex; gap:8px; align-items:center; font-size:.74rem; letter-spacing:.08em;
+    text-transform:uppercase; color:var(--muted); margin:14px 0 22px; padding:6px 12px;
+    border:1px solid var(--line); border-radius:100px; background:var(--surface);}
+  .dot{width:9px;height:9px;border-radius:50%;background:var(--done);}
+  .key{background:var(--surface); border:1px solid var(--line); border-radius:12px;
+    padding:16px 18px; margin-bottom:12px;}
+  .key .top{display:flex; align-items:center; gap:10px; flex-wrap:wrap;}
+  .key .name{font-weight:700;}
+  .badge{font-size:.64rem; letter-spacing:.08em; text-transform:uppercase; padding:2px 8px;
+    border-radius:100px; border:1px solid var(--line);}
+  .badge.free{color:var(--done); border-color:color-mix(in srgb,var(--done) 34%,transparent); background:color-mix(in srgb,var(--done) 12%,transparent);}
+  .badge.paid{color:var(--muted);}
+  .badge.set{color:var(--tech); border-color:color-mix(in srgb,var(--tech) 34%,transparent);}
+  .key .unlocks{color:var(--muted); font-size:.9rem; margin:4px 0 10px;}
+  .key a{color:var(--tech); font-size:.82rem; text-decoration:none;}
+  .key a:hover{text-decoration:underline;}
+  .row{display:flex; gap:8px; margin-top:8px;}
+  input[type=password],input[type=text]{flex:1; background:var(--ground); border:1px solid var(--line);
+    color:var(--ink); border-radius:8px; padding:9px 12px; font-family:inherit; font-size:.9rem;}
+  input:focus{outline:2px solid var(--tech); outline-offset:1px; border-color:var(--tech);}
+  .reveal{background:var(--surface-2); border:1px solid var(--line); color:var(--muted);
+    border-radius:8px; padding:0 12px; cursor:pointer; font-size:.8rem;}
+  .actions{position:sticky; bottom:0; padding:16px 0; background:linear-gradient(transparent,var(--ground) 40%);}
+  button.save{width:100%; background:var(--accent); color:#20130f; border:none; border-radius:10px;
+    padding:13px; font-weight:700; font-size:1rem; cursor:pointer;}
+  button.save:hover{filter:brightness(1.06);}
+  button.save:disabled{opacity:.6; cursor:wait;}
+  .msg{text-align:center; font-size:.9rem; margin-top:10px; min-height:1.2em; color:var(--done);}
+  .hint{color:var(--faint); font-size:.82rem; margin-top:18px;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>AI&#8209;OS <span>· setup</span></h1>
+  <p class="lede">Optional keys — all free-first, all skippable. With none set, the box runs fully local.</p>
+  <div class="mode"><span class="dot" id="modeDot"></span><span id="mode">checking…</span></div>
+
+  <div id="keys"></div>
+
+  <div class="actions">
+    <button class="save" id="save">Save &amp; activate</button>
+    <div class="msg" id="msg"></div>
+  </div>
+  <p class="hint">Keys are written to the app's <span class="mono">.env</span> and applied immediately. Stored values are never shown back here.</p>
+</div>
+
+<script>
+const API='/api/v1/setup';
+const keysEl=document.getElementById('keys');
+const modeEl=document.getElementById('mode');
+const modeDot=document.getElementById('modeDot');
+const msg=document.getElementById('msg');
+
+async function load(){
+  const s=await (await fetch(API+'/status')).json();
+  modeEl.textContent = s.mode==='hybrid' ? 'hybrid — local + cloud' : 'local-only';
+  modeDot.style.background = s.mode==='hybrid' ? 'var(--tech)' : 'var(--done)';
+  keysEl.innerHTML='';
+  for(const k of s.keys){
+    const div=document.createElement('div'); div.className='key';
+    div.innerHTML=`
+      <div class="top">
+        <span class="name">${k.label}</span>
+        <span class="badge ${k.free?'free':'paid'}">${k.free?'free':'paid'}</span>
+        ${k.configured?'<span class="badge set">configured</span>':''}
+      </div>
+      <div class="unlocks">${k.unlocks}</div>
+      <a href="${k.url}" target="_blank" rel="noopener">Get a key → ${k.url.replace(/^https?:\/\//,'')}</a>
+      <div class="row">
+        <input type="password" data-name="${k.name}" placeholder="${k.configured?'•••••••• (leave blank to keep)':'paste key (optional)'}">
+        <button class="reveal" type="button">show</button>
+      </div>`;
+    keysEl.appendChild(div);
+  }
+  keysEl.querySelectorAll('.reveal').forEach(b=>b.addEventListener('click',()=>{
+    const inp=b.previousElementSibling; const p=inp.type==='password';
+    inp.type=p?'text':'password'; b.textContent=p?'hide':'show';
+  }));
+}
+
+document.getElementById('save').addEventListener('click',async(e)=>{
+  const btn=e.target; btn.disabled=true; msg.textContent='';
+  const values={};
+  keysEl.querySelectorAll('input[data-name]').forEach(i=>{ if(i.value.trim()) values[i.dataset.name]=i.value.trim(); });
+  try{
+    const r=await fetch(API+'/save',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({values})});
+    const d=await r.json();
+    if(!r.ok) throw new Error(d.detail||'save failed');
+    msg.style.color='var(--done)';
+    msg.textContent = d.saved.length ? ('Saved: '+d.saved.join(', ')+'. Active providers: '+d.usable_providers.join(', ')) : 'Nothing to save (all blank).';
+    await load();
+  }catch(err){ msg.style.color='var(--accent)'; msg.textContent=err.message; }
+  finally{ btn.disabled=false; }
+});
+
+load();
+</script>
+</body>
+</html>

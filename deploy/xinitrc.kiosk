@@ -1,0 +1,44 @@
+#!/bin/sh
+# AI-OS kiosk X session — launches a fullscreen browser onto the dashboard.
+# Installed to /home/aios/.xinitrc by install-appliance.sh
+
+# No screen blanking / power management (it's an appliance).
+xset s off
+xset -dpms
+xset s noblank
+
+# Hide the mouse cursor when idle.
+command -v unclutter >/dev/null 2>&1 && unclutter -idle 2 &
+
+# Minimal window manager so the browser has focus/decorations handled.
+command -v openbox >/dev/null 2>&1 && openbox &
+
+URL="http://localhost:8080/dashboard-ui"
+
+# Wait for the backend to answer before opening the browser (up to ~60s).
+i=0
+while [ $i -lt 60 ]; do
+    if curl -sf "http://localhost:8080/api/v1/health" >/dev/null 2>&1; then
+        break
+    fi
+    i=$((i + 1))
+    sleep 1
+done
+
+# Pick whichever Chromium/Chrome binary exists.
+for BIN in chromium chromium-browser google-chrome google-chrome-stable; do
+    if command -v "$BIN" >/dev/null 2>&1; then
+        BROWSER="$BIN"
+        break
+    fi
+done
+
+exec "$BROWSER" \
+    --kiosk \
+    --noerrdialogs \
+    --disable-infobars \
+    --disable-session-crashed-bubble \
+    --disable-translate \
+    --no-first-run \
+    --check-for-update-interval=31536000 \
+    --app="$URL"

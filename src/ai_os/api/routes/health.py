@@ -8,7 +8,7 @@ from ai_os.models.schemas import HealthStatus
 router = APIRouter()
 
 
-@router.get("/")
+@router.get("")
 async def health_check():
     """Health check endpoint"""
     # Would check all components

@@ -71,6 +71,7 @@ class Settings(BaseSettings):
     class Config:
         env_file = ".env"
         case_sensitive = True
+        extra = "ignore"  # tolerate env keys not declared on this model
 
     @property
     def is_secure(self) -> bool:

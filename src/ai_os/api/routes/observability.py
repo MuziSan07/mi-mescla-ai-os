@@ -4,11 +4,12 @@ AI-OS Distributed Observability API Routes
 
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
+from datetime import datetime
 import logging
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/api/observe", tags=["observe"])
+router = APIRouter(tags=["observe"])  # prefix supplied by main.py (/api/v1/observe)
 
 
 class RunObservabilityRequest(BaseModel):

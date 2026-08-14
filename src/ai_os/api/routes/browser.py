@@ -12,7 +12,7 @@ from ai_os.browser.engine import LightBrowser, BrowserPool, get_browser_pool
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/api/browser", tags=["browser"])
+router = APIRouter(tags=["browser"])  # prefix supplied by main.py (/api/v1/browser)
 
 
 class NavigateRequest(BaseModel):

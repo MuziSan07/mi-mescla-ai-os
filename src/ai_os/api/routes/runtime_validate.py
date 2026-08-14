@@ -8,7 +8,7 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/api/validate", tags=["validate"])
+router = APIRouter(tags=["validate"])  # prefix supplied by main.py (/api/v1/runtime)
 
 
 class RunValidationRequest(BaseModel):

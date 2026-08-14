@@ -148,9 +148,9 @@ class WorkerHeartbeat:
 @dataclass
 class WorkerIssue:
     """Detected worker issue"""
-    issue_id: str = field(default_factory=lambda: str(uuid.uuid4())[:8])
     worker_id: str
     issue_type: IssueType
+    issue_id: str = field(default_factory=lambda: str(uuid.uuid4())[:8])
     severity: str = "medium"  # low, medium, high, critical
     
     detected_at: float = field(default_factory=time.time)

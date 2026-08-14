@@ -92,10 +92,10 @@ app.add_middleware(
 # Include routers
 from ai_os.api.routes import chat, models, workers, vision, memory, tools, health
 from ai_os.api.routes import agents, browser, vms, gateway, tunnels, source, audit, runtime_validate, observability
-from ai_os.api.routes import worker_lifecycle, execute
+from ai_os.api.routes import worker_lifecycle, execute, dashboard, voice, conductor, developer, knowledge, setup
 
 app.include_router(chat.router, prefix=settings.API_PREFIX, tags=["chat"])
-app.include_router(models.router, prefix=settings.API_PREFIX, tags=["models"])
+app.include_router(models.router, prefix=settings.API_PREFIX + "/models", tags=["models"])
 app.include_router(workers.router, prefix=settings.API_PREFIX + "/workers", tags=["workers"])
 app.include_router(vision.router, prefix=settings.API_PREFIX + "/vision", tags=["vision"])
 app.include_router(memory.router, prefix=settings.API_PREFIX + "/memory", tags=["memory"])
@@ -111,17 +111,70 @@ app.include_router(audit.router, prefix=settings.API_PREFIX + "/audit", tags=["a
 app.include_router(runtime_validate.router, prefix=settings.API_PREFIX + "/runtime", tags=["runtime"])
 app.include_router(observability.router, prefix=settings.API_PREFIX + "/observe", tags=["observe"])
 app.include_router(worker_lifecycle.router, prefix=settings.API_PREFIX + "/lifecycle", tags=["lifecycle"])
+# dashboard routes already include the /dashboard/ path internally -> mount at API root
+app.include_router(dashboard.router, prefix=settings.API_PREFIX, tags=["dashboard"])
+# execute router carries its own full /api/v1/execute prefix
+app.include_router(execute.router, tags=["execution"])
+app.include_router(voice.router, prefix=settings.API_PREFIX + "/voice", tags=["voice"])
+app.include_router(conductor.router, prefix=settings.API_PREFIX + "/conductor", tags=["conductor"])
+app.include_router(developer.router, prefix=settings.API_PREFIX + "/developer", tags=["developer"])
+app.include_router(knowledge.router, prefix=settings.API_PREFIX + "/knowledge", tags=["knowledge"])
+app.include_router(setup.router, prefix=settings.API_PREFIX + "/setup", tags=["setup"])
 
 
 @app.get("/dashboard-ui", response_class=HTMLResponse)
 async def dashboard_ui():
-    """Serve the AI-OS Dashboard UI"""
+    """Serve the AI-OS Dashboard UI.
+
+    Resolves the dashboard HTML from several candidate locations so it works
+    both in Docker (/app/...) and on a bare VM/appliance install. Override with
+    the DASHBOARD_HTML env var.
+    """
     import os
-    dashboard_path = "/app/frontend/dashboard.html"
-    if os.path.exists(dashboard_path):
-        with open(dashboard_path) as f:
-            return HTMLResponse(content=f.read())
-    return HTMLResponse(content="<h1>Dashboard not found</h1>")
+    repo_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    candidates = [
+        os.getenv("DASHBOARD_HTML", ""),
+        "/app/frontend/dashboard.html",
+        os.path.join(repo_root, "frontend", "dashboard.html"),
+        os.path.join(repo_root, "dashboard.html"),
+    ]
+    for path in candidates:
+        if path and os.path.exists(path):
+            with open(path, encoding="utf-8") as f:
+                return HTMLResponse(content=f.read())
+    return HTMLResponse(
+        content="<h1>Dashboard not found</h1><p>Set DASHBOARD_HTML to the dashboard.html path.</p>",
+        status_code=404,
+    )
+
+def _serve_frontend(filename: str, env_var: str) -> HTMLResponse:
+    """Resolve a frontend HTML file across Docker/VM/dev layouts and serve it."""
+    import os
+    repo_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    candidates = [
+        os.getenv(env_var, ""),
+        f"/app/frontend/{filename}",
+        os.path.join(repo_root, "frontend", filename),
+        os.path.join(repo_root, filename),
+    ]
+    for path in candidates:
+        if path and os.path.exists(path):
+            with open(path, encoding="utf-8") as f:
+                return HTMLResponse(content=f.read())
+    return HTMLResponse(content=f"<h1>{filename} not found</h1>", status_code=404)
+
+
+@app.get("/voice-ui", response_class=HTMLResponse)
+async def voice_ui():
+    """Serve the push-to-talk voice assistant page."""
+    return _serve_frontend("voice.html", "VOICE_HTML")
+
+
+@app.get("/setup-ui", response_class=HTMLResponse)
+async def setup_ui():
+    """Serve the first-run setup wizard."""
+    return _serve_frontend("setup.html", "SETUP_HTML")
+
 
 @app.get("/")
 async def root():
@@ -130,6 +183,7 @@ async def root():
         "version": settings.VERSION,
         "status": "running",
         "dashboard": "/dashboard-ui",
+        "voice": "/voice-ui",
         "docs": "/docs"
     }
 

@@ -1,0 +1,60 @@
+#!/bin/bash
+# ============================================================================
+#  live-build chroot hook — provision AI-OS inside the ISO image.
+#
+#  Runs as root inside the image chroot during `lb build`. The repo has already
+#  been placed at /opt/aios/app (via includes.chroot). This installs the app,
+#  services, and kiosk auto-login. Heavy model downloads are deferred to the
+#  first-boot service (network + running systemd required).
+# ============================================================================
+set -e
+
+APP_USER="aios"
+APP_HOME="/opt/aios"
+APP_DIR="${APP_HOME}/app"
+VENV="${APP_HOME}/venv"
+
+echo "[hook] Creating ${APP_USER} user"
+id -u "${APP_USER}" >/dev/null 2>&1 || useradd --create-home --shell /bin/bash "${APP_USER}"
+usermod -aG audio "${APP_USER}" || true
+
+echo "[hook] Creating virtualenv and installing AI-OS"
+python3 -m venv "${VENV}"
+"${VENV}/bin/pip" install --upgrade pip wheel
+"${VENV}/bin/pip" install -e "${APP_DIR}[standard,integrations,voice,wake]" \
+    || "${VENV}/bin/pip" install -e "${APP_DIR}"
+
+echo "[hook] Writing .env"
+if [ ! -f "${APP_DIR}/.env" ]; then
+    cp "${APP_DIR}/deploy/.env.appliance" "${APP_DIR}/.env"
+    SECRET="$(head -c 48 /dev/urandom | base64 | tr -d '/+=' | head -c 48)"
+    sed -i "s|^SECRET_KEY=.*|SECRET_KEY=${SECRET}|" "${APP_DIR}/.env"
+fi
+chown -R "${APP_USER}:${APP_USER}" "${APP_HOME}"
+
+echo "[hook] Installing systemd services"
+cp "${APP_DIR}/deploy/aios.service"            /etc/systemd/system/aios.service
+cp "${APP_DIR}/deploy/aios-voice.service"      /etc/systemd/system/aios-voice.service
+cp "${APP_DIR}/deploy/aios-firstboot.service"  /etc/systemd/system/aios-firstboot.service
+chmod +x "${APP_DIR}/deploy/firstboot.sh"
+systemctl enable aios.service aios-voice.service aios-firstboot.service || true
+
+echo "[hook] Configuring kiosk auto-login"
+install -o "${APP_USER}" -g "${APP_USER}" -m 0755 \
+    "${APP_DIR}/deploy/xinitrc.kiosk" "/home/${APP_USER}/.xinitrc"
+cat >> "/home/${APP_USER}/.bash_profile" <<'EOF'
+# Launch the AI-OS kiosk on tty1 login
+if [ -z "${DISPLAY}" ] && [ "${XDG_VTNR}" = "1" ]; then
+    exec startx
+fi
+EOF
+chown "${APP_USER}:${APP_USER}" "/home/${APP_USER}/.bash_profile"
+
+mkdir -p /etc/systemd/system/getty@tty1.service.d
+cat > /etc/systemd/system/getty@tty1.service.d/override.conf <<EOF
+[Service]
+ExecStart=
+ExecStart=-/sbin/agetty --autologin ${APP_USER} --noclear %I \$TERM
+EOF
+
+echo "[hook] AI-OS provisioned into image."

@@ -35,6 +35,10 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
+# Create a non-root user to run the application
+RUN groupadd --gid 1001 aios && \
+    useradd --uid 1001 --gid aios --shell /bin/bash --create-home aios
+
 COPY --from=builder /usr/local/lib/python3.11/site-packages /usr/local/lib/python3.11/site-packages
 COPY --from=builder /usr/local/bin /usr/local/bin
 
@@ -42,20 +46,35 @@ COPY src/ ./src/
 COPY tests/ ./tests/
 COPY pytest.ini ./
 
+# Set ownership so non-root user can write to /app/src/ai_os/data (tenant DB)
+RUN mkdir -p /app/src/ai_os/data && chown -R aios:aios /app
+
 ENV PYTHONPATH=/app/src
 ENV PYTHONUNBUFFERED=1
 ENV APP_NAME="AI-OS"
+
+# ── SECURITY: No secrets in ENV defaults ──────────────────────────────────
+# SECRET_KEY and JWT_SECRET must be injected at runtime via:
+#   - docker run -e SECRET_KEY=... -e JWT_SECRET=...
+#   - docker-compose environment section (from .env file, NOT hardcoded)
+#   - Kubernetes Secret mounted as env vars
+#
+# The application will refuse to start if these are missing or placeholder values.
+# ─────────────────────────────────────────────────────────────────────────
 ENV DEBUG="false"
-ENV SECRET_KEY="change-me-in-production"
 ENV OLLAMA_BASE_URL="http://ollama:11434"
 ENV REDIS_HOST="redis"
 ENV REDIS_PORT="6379"
 ENV RABBITMQ_HOST="rabbitmq"
 ENV RABBITMQ_PORT="5672"
+ENV AUTH_ENABLED="true"
 
 EXPOSE 8080
 
 HEALTHCHECK --interval=30s --timeout=10s --start-period=15s --retries=3 \
     CMD curl -f http://localhost:8080/api/v1/health/live || exit 1
+
+# Run as non-root
+USER aios
 
 CMD ["uvicorn", "ai_os.main:app", "--host", "0.0.0.0", "--port", "8080"]

@@ -57,6 +57,17 @@ class ProviderConfig:
             "models": ["*"],
             "supports": ["chat", "embeddings"],
         },
+        # Free-tier, OpenAI-compatible cloud providers.
+        "groq": {
+            "base_url": "https://api.groq.com/openai/v1",
+            "models": ["llama-3.3-70b-versatile", "llama-3.1-8b-instant", "mixtral-8x7b-32768"],
+            "supports": ["chat"],
+        },
+        "openrouter": {
+            "base_url": "https://openrouter.ai/api/v1",
+            "models": ["*"],
+            "supports": ["chat"],
+        },
     }
     
     @classmethod
@@ -122,6 +133,11 @@ class UnifiedAPIGateway:
     
     def _detect_provider(self, model: str) -> tuple[str, str]:
         """Detect provider from model name"""
+        # Explicit "provider:model" syntax wins (e.g. "groq:llama-3.3-70b-versatile").
+        if ":" in model:
+            prefix, _, rest = model.partition(":")
+            if prefix in self.providers and rest:
+                return prefix, rest
         # Check explicit prefix
         if "-" in model:
             provider, _, rest = model.partition("-")
@@ -142,6 +158,66 @@ class UnifiedAPIGateway:
         
         return "openai", "gpt-3.5-turbo"
     
+    # ---- Hybrid routing helpers ------------------------------------------
+
+    # Env var(s) that must be set for a cloud provider to be usable.
+    _CREDENTIAL_ENV = {
+        "openai": ["OPENAI_API_KEY"],
+        "anthropic": ["ANTHROPIC_API_KEY", "ANTHROPIC_KEY"],
+        "google": ["GOOGLE_API_KEY"],
+        "cohere": ["COHERE_API_KEY"],
+        "huggingface": ["HUGGING_FACE_TOKEN", "HUGGINGFACE_TOKEN"],
+        "azure": ["AZURE_OPENAI_API_KEY"],
+        "groq": ["GROQ_API_KEY"],
+        "openrouter": ["OPENROUTER_API_KEY"],
+    }
+    # Primary key env per OpenAI-compatible provider (for request auth).
+    _KEY_ENV = {
+        "openai": "OPENAI_API_KEY",
+        "groq": "GROQ_API_KEY",
+        "openrouter": "OPENROUTER_API_KEY",
+        "local": "LOCAL_API_KEY",
+    }
+
+    def _provider_available(self, provider: str) -> bool:
+        """A provider is usable if it is local (ollama/local) or has a credential set."""
+        if provider in ("ollama", "local"):
+            return True
+        return any(os.getenv(n) for n in self._CREDENTIAL_ENV.get(provider, []))
+
+    def _candidate_chain(self, model: str) -> List[str]:
+        """Ordered list of concrete models to try: requested first, then fallbacks.
+
+        Always ends with a local Ollama model so a hybrid box with no cloud
+        keys still has a working last-resort option.
+        """
+        chain: List[str] = []
+        if model:
+            chain.append(model)
+        chain += self.fallback_models.get(model, self.fallback_models.get("default", []))
+        # Always end with the configured local model — the one that is actually
+        # pulled in Ollama — so the box works even if the hard-coded fallback
+        # chain names models (llama2/mistral) that aren't installed.
+        chain.append(os.getenv("DEFAULT_LOCAL_MODEL", "llama3.2"))
+        # de-duplicate while preserving order
+        seen, ordered = set(), []
+        for m in chain:
+            if m not in seen:
+                seen.add(m)
+                ordered.append(m)
+        return ordered
+
+    def provider_status(self) -> Dict[str, Dict[str, Any]]:
+        """Report which providers are currently usable (for health/dashboard)."""
+        return {
+            name: {
+                "available": self._provider_available(name),
+                "type": "local" if name in ("ollama", "local") else "cloud",
+                "models": cfg.get("models", []),
+            }
+            for name, cfg in self.providers.items()
+        }
+
     async def chat(
         self,
         model: str,
@@ -149,20 +225,45 @@ class UnifiedAPIGateway:
         **kwargs
     ) -> ChatCompletionResponse:
         """
-        Main chat completion endpoint.
-        Automatically routes to correct provider.
+        Main chat completion endpoint — hybrid (local + cloud) with fallback.
+
+        Tries the requested model, then its fallback chain, skipping any provider
+        that has no credentials configured, until one succeeds. Local Ollama is
+        always the final fallback so an offline box still works.
         """
-        provider_name, model = self._detect_provider(model)
-        config = self.providers.get(provider_name)
-        
-        if not config:
-            raise ValueError(f"Unknown provider: {provider_name}")
-        
-        self.request_count += 1
-        
-        # Handle different provider formats
-        if provider_name == "openai":
-            return await self._openai_request(config, model, messages, **kwargs)
+        errors: List[str] = []
+        for candidate in self._candidate_chain(model):
+            provider_name, concrete = self._detect_provider(candidate)
+            config = self.providers.get(provider_name)
+            if not config:
+                continue
+            if not self._provider_available(provider_name):
+                errors.append(f"{provider_name}: no credentials configured")
+                continue
+            self.request_count += 1
+            try:
+                return await self._dispatch(provider_name, config, concrete, messages, **kwargs)
+            except Exception as e:  # try the next provider in the chain
+                logger.warning(f"Provider {provider_name} ({concrete}) failed: {e}")
+                errors.append(f"{provider_name}/{concrete}: {e}")
+        raise RuntimeError(
+            "All providers failed or unavailable. Tried: " + " | ".join(errors)
+            + ". Configure a cloud API key or start Ollama with a pulled model."
+        )
+
+    async def _dispatch(
+        self,
+        provider_name: str,
+        config: Dict,
+        model: str,
+        messages: List[Dict],
+        **kwargs
+    ) -> ChatCompletionResponse:
+        """Route a single request to the concrete provider implementation."""
+        # OpenAI-compatible providers share one handler (differ only in base_url + key).
+        if provider_name in ("openai", "groq", "openrouter", "local"):
+            return await self._openai_request(config, model, messages,
+                                              provider_name=provider_name, **kwargs)
         elif provider_name == "anthropic":
             return await self._anthropic_request(config, model, messages, **kwargs)
         elif provider_name == "ollama":
@@ -175,13 +276,15 @@ class UnifiedAPIGateway:
             return await self._hf_request(config, model, messages, **kwargs)
         elif provider_name == "cohere":
             return await self._cohere_request(config, model, messages, **kwargs)
-        else:
-            return await self._openai_request(config, model, messages, **kwargs)
-    
-    async def _openai_request(self, config: Dict, model: str, messages: List[Dict], **kwargs) -> ChatCompletionResponse:
-        """Handle OpenAI-compatible API requests"""
+        return await self._openai_request(config, model, messages,
+                                          provider_name="openai", **kwargs)
+
+    async def _openai_request(self, config: Dict, model: str, messages: List[Dict],
+                              provider_name: str = "openai", **kwargs) -> ChatCompletionResponse:
+        """Handle any OpenAI-compatible API (OpenAI, Groq, OpenRouter, local)."""
+        key_env = self._KEY_ENV.get(provider_name, "OPENAI_API_KEY")
         headers = {
-            "Authorization": f"Bearer {os.getenv('OPENAI_API_KEY', '')}",
+            "Authorization": f"Bearer {os.getenv(key_env, '')}",
             "Content-Type": "application/json"
         }
         
@@ -215,10 +318,10 @@ class UnifiedAPIGateway:
                     model=model,
                     choices=result.get("choices", []),
                     usage=result.get("usage", {}),
-                    provider="openai"
+                    provider=provider_name
                 )
             except httpx.HTTPError as e:
-                logger.error(f"OpenAI request failed: {e}")
+                logger.error(f"{provider_name} request failed: {e}")
                 raise
     
     async def _anthropic_request(self, config: Dict, model: str, messages: List[Dict], **kwargs) -> ChatCompletionResponse:

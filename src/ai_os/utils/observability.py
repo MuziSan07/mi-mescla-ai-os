@@ -616,7 +616,8 @@ class DistributedObservabilitySystem:
     
     async def calculate_reality_scores(self) -> RealityScores:
         """Calculate all reality scores"""
-        
+        scores = RealityScores()
+
         # 1. Runtime integrity (based on endpoint health checks)
         try:
             import httpx
