@@ -10,10 +10,10 @@
 
 | Alternativa | Pros | Contras | Selección |
 |-------------|------|---------|-----------|
-| Microservices puro | Escalabilidad independiente | Complejidad operacional | ❌ |
-| Distributed Monolith | Acoplamiento | No separation | ❌ |
-| **Modular Monolith** | Simplicidad, claros boundaries | Scaling gradual | ✅ |
-| Hybrid | Flexibilidad | Ambigüedad | ⚠️ |
+| Microservices puro | Escalabilidad independiente | Complejidad operacional | |
+| Distributed Monolith | Acoplamiento | No separation | |
+| **Modular Monolith** | Simplicidad, claros boundaries | Scaling gradual | |
+| Hybrid | Flexibilidad | Ambigüedad | |
 
 ### Rationale
 

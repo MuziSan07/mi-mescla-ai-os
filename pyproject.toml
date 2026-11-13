@@ -3,7 +3,7 @@ name = "ai-os"
 description = "AI Operating System — multi-agent orchestration platform"
 version = "1.0.0"
 authors = [
-    { name = "AI-OS Contributors" }
+    { name = "Ali Basit" }
 ]
 license = { text = "MIT" }
 requires-python = ">=3.11"

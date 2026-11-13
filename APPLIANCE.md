@@ -154,7 +154,7 @@ docker compose up -d
 
 ## Roadmap
 
-- **Phase 0 — Fix the app** ✅ (boots, hybrid routing, clean API, dashboard wired)
+- **Phase 0 — Fix the app** (boots, hybrid routing, clean API, dashboard wired)
 - **Phase 1 — Kiosk appliance** ← *you are here*
 - **Phase 2 — Distributable `AI-OS.iso`** (build with `debian-live-build` /
   Buildroot so it boots on any VM or USB stick)

@@ -1,68 +1,72 @@
-# 🤖 CLINE-AI-OS UNIFIED
-## Sistema Operativo de IA Multiagente y Distribuido
+# CLINE-AI-OS UNIFIED
+
+## Sistema operativo de IA multiagente y distribuido
+
+Proyecto unificado que combina tres sistemas:
+
+- **AI-OS** (de mi-Open-WebUI) — sistema operativo de IA distribuido
+- **Manus Desktop** (de mi-manus-desktop) — núcleo de auditoría de IA
+- **Cline** (de cline/cline) — referencia para el agente de coding
 
 ---
 
-## 📋 Descripción
-
-Proyecto unificado que combina tres sistemas innovadores:
-
-- **AI-OS** (de mi-Open-WebUI) - Sistema operativo IA distribuido
-- **Manus Desktop** (de -mi-manus-desktop) - Núcleo de auditoría IA  
-- **Cline** (de cline/cline) - Referencia para agente coding
-
----
-
-## 🏗️ Arquitectura
+## Arquitectura
 
 ```
 cline-ai-os/
 ├── src/
-│   ├── ai-os/              # Core del sistema (12,276 líneas)
-│   │   ├── main.py         # FastAPI entry point
-│   │   ├── api/routes/      # 18 endpoints de API
-│   │   ├── core/          # Gateway, Agentes, GPU, Memory, Events
-│   │   ├── utils/        # Auditor, Runtime, Observability
+│   ├── ai_os/               # Núcleo del sistema
+│   │   ├── main.py          # Punto de entrada FastAPI
+│   │   ├── api/routes/      # Endpoints de la API
+│   │   ├── core/            # Gateway, agentes, GPU, memoria, eventos, voz
+│   │   ├── utils/           # Auditor, runtime, observabilidad
 │   │   └── config/
-│   └── manus-desktop/      # Módulos de tenant management
-├── docker-compose.yaml     # 4 servicios con healthchecks
-├── pyproject.toml        # Dependencias Python
+│   └── manus-desktop/       # Módulos de gestión de tenants
+├── deploy/                  # Appliance y kits de ISO booteable
+├── native/                  # Acelerador opcional de tokenizer (C++)
+├── docker-compose.yaml      # Servicios con healthchecks
+├── pyproject.toml           # Dependencias Python
 └── README.md
 ```
 
 ---
 
-## 📦 Servicios (Docker)
+## Servicios (Docker)
 
-| Servicio |Puerto|Descripción|
-|---------|------|------------|
+| Servicio | Puerto | Descripción |
+|----------|--------|-------------|
 | app | 3000 | Aplicación principal FastAPI |
 | redis | 6379 | Cache y sesiones |
-| rabbitmq | 5672/15672 | Colas de mensajes |
+| rabbitmq | 5672 / 15672 | Colas de mensajes |
 | ollama | 11434 | Modelos locales |
 
 ---
 
-## 🎯 Características
+## Características
 
-### AI-OS (Core)
-- ✅ API Gateway unificado (Multi-provider: OpenAI, Anthropic, Ollama)
-- ✅ Agentes especializados (Coding, Chat, Vision, Research)
-- ✅ Workers GPU distribuidos (Colab lifecycle)
-- ✅ Validación Runtime real
-- ✅ Observabilidad distribuida
-- ✅ Event Bus para comunicación asíncrona
-- ✅ Task Queue para orquestación
+### AI-OS (núcleo)
+
+- API Gateway unificado (multi-provider: OpenAI, Anthropic, Ollama)
+- Agentes especializados (coding, chat, visión, research)
+- Workers GPU distribuidos (Colab lifecycle)
+- Validación runtime real
+- Observabilidad distribuida
+- Event Bus para comunicación asíncrona
+- Task Queue para orquestación
 
 ### Manus Desktop
-- ✅ _pl/tenant/manager.py - Gestión de tenants
+
+- `_pl/tenant/manager.py` — gestión de tenants
 
 ### Cline
-- ℹ️ Referencia (sin implementar)
+
+- Referencia (sin implementar)
 
 ---
 
-## 🚀 Inicio Rápido
+## Inicio rápido
+
+### Con Docker
 
 ```bash
 # Iniciar servicios
@@ -75,12 +79,19 @@ docker-compose ps
 curl http://localhost:3000/api/health
 ```
 
+### En local
+
+```bash
+pip install -e .
+uvicorn ai_os.main:app --host 0.0.0.0 --port 8000
+```
+
 ---
 
-## 🔌 API Endpoints
+## Endpoints de la API
 
 | Endpoint | Descripción |
-|----------|------------|
+|----------|-------------|
 | `/api/chat` | Chat con modelos |
 | `/api/agents/execute` | Ejecutar agente |
 | `/api/gateway/models` | Modelos disponibles |
@@ -92,49 +103,73 @@ curl http://localhost:3000/api/health
 
 ---
 
-## 📊 Estadísticas
+## Estado del proyecto
+
+- **Estado actual:** MVP funcional temprano
+- **Última validación:** los tests de runtime pasan
+
+### Implementado
+
+- Arranque de la app FastAPI
+- Event Bus (pub/sub)
+- Task Queue (enqueue / dequeue / ack)
+- Tool Executor (echo, shell, http)
+- Integración básica
+
+### Pendiente
+
+- WorkerManager real (actualmente stub)
+- AgentRuntime real (actualmente stub)
+- Redis conectado
+- Tests unitarios ampliados
+- Autenticación JWT
+- Métricas Prometheus
+
+---
+
+## Estadísticas
 
 | Métrica | Valor |
 |---------|-------|
 | Archivos Python | 55 |
 | Líneas de código | 12,276 |
-| API Endpoints | 18 |
+| Endpoints de la API | 18 |
 | Servicios Docker | 4 |
-| Errors de sintaxis | 0 |
+| Errores de sintaxis | 0 |
 
 ---
 
-## ⚠️ Known Issues
+## Dependencias en uso
 
-- Placeholders en algunos módulos no implementados
-- Cline: referencia sin código fuente
+Basado en `pyproject.toml`:
+
+| Paquete | Versión | Uso |
+|---------|---------|-----|
+| **fastapi** | 0.135.1 | Framework web async |
+| **pydantic** | 2.12.5 | Validación de datos |
+| **httpx** | 0.28.1 | Cliente HTTP |
+| **uvicorn** | 0.41.0 | Servidor ASGI |
+| **openai** | 2.29.0 | API OpenAI |
+| **anthropic** | 0.86.0 | API Anthropic |
+| **langchain** | 1.2.10 | Componentes LLM |
+| **redis** | 7.4.0 | Cache / colas |
+| **authlib** | 1.6.10 | OAuth |
 
 ---
 
-## 📋 Requisitos
+## Requisitos
 
 - Python 3.11+
 - Docker + Docker Compose
-- Redis, RabbitMQ (incluidos)
+- Redis, RabbitMQ (incluidos en el compose)
 
 ---
 
-## 👤 Autor
+## Proyectos y herramientas utilizadas
 
-AOI-555
+Este sistema hace uso de los siguientes proyectos y herramientas de código abierto.
 
-## 🔒 Licencia
-
-CERRADA - NO PERMISIVA
-Todos los derechos reservados
-
----
-
-## 🔧 Proyectos y Herramientas Utilizadas
-
-Este sistema hace uso de los siguientes proyectos y herramientas de código abierto:
-
-### Frameworks Principales
+### Frameworks principales
 
 | Proyecto | Uso | URL |
 |----------|-----|-----|
@@ -142,7 +177,7 @@ Este sistema hace uso de los siguientes proyectos y herramientas de código abie
 | **Pydantic** | Validación de datos | https://docs.pydantic.dev |
 | **Uvicorn** | Servidor ASGI | https://www.uvicorn.org |
 
-### Orquestación y Agentes
+### Orquestación y agentes
 
 | Proyecto | Uso | URL |
 |----------|-----|-----|
@@ -150,7 +185,7 @@ Este sistema hace uso de los siguientes proyectos y herramientas de código abie
 | **CrewAI** | Framework multiagente | https://docs.crewai.com |
 | **LangChain** | Componentes LLM | https://python.langchain.com |
 
-### Modelos y Providers
+### Modelos y providers
 
 | Proyecto | Uso | URL |
 |----------|-----|-----|
@@ -167,20 +202,20 @@ Este sistema hace uso de los siguientes proyectos y herramientas de código abie
 | **Redis** | Cache y colas | https://redis.io |
 | **RabbitMQ** | Broker de mensajes | https://www.rabbitmq.com |
 
-### Docker y Despliegue
+### Docker y despliegue
 
 | Proyecto | Uso | URL |
 |----------|-----|-----|
 | **Docker** | Contenedores | https://www.docker.com |
 | **Tailscale** | Networking seguro | https://tailscale.com |
 
-### Herramientas de Desarrollo
+### Herramientas de desarrollo
 
 | Proyecto | Uso | URL |
 |----------|-----|-----|
-| **Open WebUI** | Interfaz web UI | https://openwebui.com |
+| **Open WebUI** | Interfaz web | https://openwebui.com |
 | **Flowise** | Flujos visuales | https://flowiseai.com |
-| **OpenHands** | Agentes autonomous | https://docs.openhands.dev |
+| **OpenHands** | Agentes autónomos | https://docs.openhands.dev |
 
 ### Monitoreo
 
@@ -189,92 +224,24 @@ Este sistema hace uso de los siguientes proyectos y herramientas de código abie
 | **Prometheus** | Métricas | https://prometheus.io |
 | **Grafana** | Dashboards | https://grafana.com |
 
-### Visión y Multimodal
+### Visión y multimodal
 
 | Proyecto | Uso | URL |
 |----------|-----|-----|
 | **OpenCV** | Visión por computadora | https://opencv.org |
-| **Qwen-VL** | Modelo visión lenguaje | https://qwenlm.github.io |
+| **Qwen-VL** | Modelo visión-lenguaje | https://qwenlm.github.io |
 | **LLaVA** | Modelo multimodal | https://llava-vl.github.io |
 
 ---
 
-## 📋 Estado del Proyecto
+## Autor
 
-- **Estado Actual**: EARLY MVP FUNCIONAL
-- **Última Validación**: Tests runtime pasan
-- **API Routes**: 97 endpoints
+Ali Basit
 
-### Lo que funciona ✅
-- FastAPI app arrancando
-- EventBus (pub/sub)
-- TaskQueue (enqueue/dequeue/ack)
-- ToolExecutor (echo, shell, http)
-- Integración básica
+## Licencia
 
-### Lo que falta para profesional 🚧
-- WorkerManager real (stub)
-- AgentRuntime real (stub)
-- Redis conectado
-- Tests unitarios
-- Dockerfile
-- Auth JWT
-- Métricas Prometheus
+Publicado bajo la licencia MIT. Consulta el archivo [LICENSE](LICENSE) para más detalles.
 
 ---
 
-## 📦 Dependencias en Uso
-
-Basado en `pyproject.toml`:
-
-| Paquete | Versión | Uso |
-|---------|--------|-----|
-| **fastapi** | 0.135.1 | Framework web async |
-| **pydantic** | 2.12.5 | Validación datos |
-| **httpx** | 0.28.1 | Cliente HTTP |
-| **uvicorn** | 0.41.0 | Servidor ASGI |
-| **openai** | 2.29.0 | API OpenAI |
-| **anthropic** | 0.86.0 | API Anthropic |
-| **langchain** | 1.2.10 | Componentes LLM |
-| **redis** | 7.4.0 | Cache/colas |
-| **authlib** | 1.6.10 | OAuth |
-
----
-
-## 📋 Estado del Proyecto
-
-- **Estado Actual**: EARLY MVP FUNCIONAL
-- **Última Validación**: Tests runtime pasan
-
-### Lo que funciona ✅
-- FastAPI app
-- EventBus
-- TaskQueue
-- ToolExecutor
-- Integración básica
-
-### Lo que falta 🚧
-- WorkerManager real
-- AgentRuntime real
-- Tests unitarios
-- Dockerfile
-- Auth JWT
-- Métricas
-
----
-
-## 🚀 Quick Start
-
-```bash
-pip install -r requirements.txt
-uvicorn ai_os.main:app --host 0.0.0.0 --port 8000
-```
-
----
-
-## 🔒 Licencia
-
-CERRADA - NO PERMISIVA
-Todos los derechos reservados
-
-*Última actualización: Mayo 2026*
+*Última actualización: 2026*

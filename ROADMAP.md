@@ -54,8 +54,8 @@ gateway, agent mesh, dashboard) and the appliance kit already delivered.
 ```mermaid
 graph TD
     subgraph You
-        MIC["🎤 Your voice"]
-        SPK["🔊 Her voice (female TTS)"]
+ MIC[" Your voice"]
+ SPK[" Her voice (female TTS)"]
     end
 
     subgraph "Voice Layer (local, free)"
@@ -65,14 +65,14 @@ graph TD
     end
 
     subgraph "Brain — Conductor Agent"
-        COND["🧠 Conductor<br/>(understands intent,<br/>delegates like Claude Code)"]
+ COND[" Conductor<br/>(understands intent,<br/>delegates like Claude Code)"]
     end
 
     subgraph "Specialist Sub-Agents"
-        DEV["👩‍💻 Developer<br/>(OpenHands)"]
-        RES["🔬 Researcher<br/>(web + HF + GitHub)"]
-        DOC["📝 Doc writer<br/>(→ Obsidian)"]
-        OPS["⚙️ DevOps / automation<br/>(n8n, Manus)"]
+ DEV["‍ Developer<br/>(OpenHands)"]
+ RES[" Researcher<br/>(web + HF + GitHub)"]
+ DOC[" Doc writer<br/>(→ Obsidian)"]
+ OPS[" DevOps / automation<br/>(n8n, Manus)"]
     end
 
     subgraph "Model Gateway (hybrid, done)"
@@ -108,14 +108,14 @@ the free ones:
 
 | Key | Free? | Where to get it | Unlocks |
 |---|---|---|---|
-| *(none)* | ✅ | — | Full local operation via Ollama + Whisper + Piper |
-| **Groq API key** | ✅ Free tier | console.groq.com | Very fast free cloud inference |
-| **Google Gemini key** | ✅ Free tier | aistudio.google.com | Free cloud LLM + vision |
-| **HuggingFace token** | ✅ Free | huggingface.co/settings/tokens | HF models + Inference API |
-| **OpenRouter key** | ✅ Free models | openrouter.ai | Access many models, some free |
-| **GitHub token** | ✅ Free | github.com/settings/tokens | Repo read/write, code research |
-| GitHub Copilot | ❌ Paid* | github.com/features/copilot | Copilot completions (*free for students/OSS maintainers) |
-| OpenAI / Anthropic | ❌ Paid | their consoles | Top-tier cloud models |
+| *(none)* | | — | Full local operation via Ollama + Whisper + Piper |
+| **Groq API key** | Free tier | console.groq.com | Very fast free cloud inference |
+| **Google Gemini key** | Free tier | aistudio.google.com | Free cloud LLM + vision |
+| **HuggingFace token** | Free | huggingface.co/settings/tokens | HF models + Inference API |
+| **OpenRouter key** | Free models | openrouter.ai | Access many models, some free |
+| **GitHub token** | Free | github.com/settings/tokens | Repo read/write, code research |
+| GitHub Copilot | Paid* | github.com/features/copilot | Copilot completions (*free for students/OSS maintainers) |
+| OpenAI / Anthropic | Paid | their consoles | Top-tier cloud models |
 
 The wizard writes these into `.env`; the gateway already skips any provider whose
 key is absent and falls back to local. **So "free by default" is already how the
@@ -127,14 +127,14 @@ routing behaves.**
 
 Each phase ends with something you can **actually use and test** — no big-bang.
 
-### ✅ Phase 0 — Fix the app *(DONE)*
+### Phase 0 — Fix the app *(DONE)*
 Boots, hybrid local+cloud routing, clean 53-endpoint API, dashboard wired, real
 local-model chat + agents verified working. 6 real bugs fixed.
 
-### ✅ Phase 1 — Bootable kiosk appliance *(DELIVERED)*
+### Phase 1 — Bootable kiosk appliance *(DELIVERED)*
 `deploy/` kit: Ubuntu VM boots straight into the dashboard. (Not yet run on a real VM.)
 
-### ✅ Phase 2 — Voice Layer *(DONE — the distinctive part)*
+### Phase 2 — Voice Layer *(DONE — the distinctive part)*
 - Local **faster-whisper** STT ([core/voice/stt.py](src/ai_os/core/voice/stt.py)) +
   **Piper** female-voice TTS ([core/voice/tts.py](src/ai_os/core/voice/tts.py)).
 - Voice API: `/api/v1/voice/status | transcribe | speak | chat`, wired to the hybrid gateway.
@@ -144,7 +144,7 @@ local-model chat + agents verified working. 6 real bugs fixed.
   llama3.2:3b answered "…Paris…" → Piper spoke the reply (11.5s WAV). Fully local & free.
 - *Remaining sub-piece:* always-listening **wake word** (openWakeWord) — a small add.
 
-### ✅ Phase 3 — The Conductor (AI managing AIs) *(DONE)*
+### Phase 3 — The Conductor (AI managing AIs) *(DONE)*
 - Orchestrator that parses a goal, **plans** it into steps, **delegates** each to a
   specialist agent (developer/researcher/analyst/writer), feeds results forward, and
   **synthesizes** a final answer — the "one brain assigns work to many" pattern.
@@ -156,7 +156,7 @@ local-model chat + agents verified working. 6 real bugs fixed.
 - *CrewAI / LangGraph / AutoGen become pluggable planner backends in Phase 6; this first
   Conductor is a lightweight LLM planner with no heavy framework lock-in.*
 
-### ✅ Phase 4 — Developer agent (autonomous builder) *(DONE — built-in; OpenHands optional)*
+### Phase 4 — Developer agent (autonomous builder) *(DONE — built-in; OpenHands optional)*
 - Built-in builder ([core/dev/developer.py](src/ai_os/core/dev/developer.py)): plans a
   project → generates each file → writes it into an isolated **workspace** (path-safety
   checks) → **safely verifies** generated Python by syntax-compiling it (never executes
@@ -170,7 +170,7 @@ local-model chat + agents verified working. 6 real bugs fixed.
   autonomous run/debug loops are OpenHands' job (heavy, external). GitHub commit/PR wiring
   can layer on next.
 
-### ✅ Phase 5 — Knowledge & Obsidian *(DONE)*
+### Phase 5 — Knowledge & Obsidian *(DONE)*
 - An **Obsidian vault** (folder of markdown notes w/ frontmatter, #tags, [[wikilinks]])
   is the shared brain: agents read/write notes and recall from them.
   [core/knowledge/vault.py](src/ai_os/core/knowledge/vault.py) + RAG in
@@ -181,7 +181,7 @@ local-model chat + agents verified working. 6 real bugs fixed.
 - **Verified:** wrote notes → asked *"what did we decide about the database schema?"* →
   recalled the right note (ignored a distractor), answered correctly, **cited the source**.
 
-### ✅ Phase 6 — Framework & tool breadth *(DONE)*
+### Phase 6 — Framework & tool breadth *(DONE)*
 - **Free cloud is now real:** added **Groq** + **OpenRouter** (OpenAI-compatible) to the
   gateway — free-tier keys route and join the hybrid fallback.
 - **First-run setup wizard** ([api/routes/setup.py](src/ai_os/api/routes/setup.py) + `/setup-ui`):
@@ -194,7 +194,7 @@ local-model chat + agents verified working. 6 real bugs fixed.
 - *Honest scope:* framework **execution** adapters are extension points (activate when you
   install the framework); Manus/n8n/ComfyUI need their own servers to be live.
 
-### ✅ Phase 7 — Distributable image *(DONE — build kit)*
+### Phase 7 — Distributable image *(DONE — build kit)*
 - A complete **debian-live-build kit** ([deploy/iso/](deploy/iso/)) that bakes the whole
   appliance (app + services + kiosk) into a bootable **`ai-os-amd64.iso`**.
 - One command on a Debian/Ubuntu host: `sudo bash deploy/iso/build-iso.sh`.
@@ -203,7 +203,7 @@ local-model chat + agents verified working. 6 real bugs fixed.
 - *Honest scope:* the kit is assembled + syntax-checked; the actual `lb build` runs on a
   Linux host (can't be built on Windows). Boots on any VM or USB stick.
 
-### ✅ Phase 8 — Hot-path engine *(DONE — profiling-driven)*
+### Phase 8 — Hot-path engine *(DONE — profiling-driven)*
 - **Profiled first:** the only genuinely CPU-bound path was vault **search**
   (~488–1100 ms/query over 1500 notes — it re-read + re-tokenized every note each query).
 - **The real win was algorithmic, not C++:** an in-memory **inverted index**
